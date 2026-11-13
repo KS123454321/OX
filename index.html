@@ -165,4 +165,690 @@
   }
 
   .status-msg { font-weight: bold; color: #0056b3; margin-top: 8px; font-size: 14px; }
-  .error-msg { color: #d9534f; font-size: 12px; margin-top: 6px; font
+  .error-msg { color: #d9534f; font-size: 12px; margin-top: 6px; font-weight: bold; }
+  
+  .control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  input[type="text"], input[type="number"], select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+  input[type="color"] { width: 34px; height: 30px; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; vertical-align: middle; }
+  
+  button { padding: 6px 12px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; font-size: 14px; font-weight: 500; transition: all 0.15s; }
+  button:hover:not(:disabled) { background: #e9ecef; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+  
+  .btn-primary { background: #0056b3; color: white; border-color: #004494; }
+  .btn-primary:hover:not(:disabled) { background: #004494; }
+  
+  .btn-local { background: #28a745; color: white; border-color: #218838; }
+  .btn-local:hover:not(:disabled) { background: #218838; }
+  
+  .btn-reset { background: #fff0f0; border-color: #d9534f; color: #d9534f; font-weight: bold; }
+  .btn-reset:hover:not(:disabled) { background: #ffd6d6; }
+  
+  .btn-clear-score { background: #fff8e6; border-color: #e0a800; color: #856404; font-size: 12px; padding: 4px 8px; margin-left: auto; }
+  .btn-clear-score:hover:not(:disabled) { background: #ffeeba; }
+
+  .local-setup-box { background: #f8f9fa; border: 1px dashed #28a745; padding: 10px; border-radius: 6px; margin-top: 10px; display: none; }
+  .game-rules-box { background: #fff9e6; border: 1px solid #ffeeba; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; color: #664d03; }
+</style>
+</head>
+<body>
+
+<!-- 遊戲頂部大標題與版次 -->
+<div class="game-title-header">
+  <h1>⚡ 多棋盤限時搶子井字遊戲</h1>
+  <span class="version-badge">v8.0 雙版本強化版</span>
+</div>
+
+<div class="panel">
+  <h3>1. 連線與遊戲設定</h3>
+  <div class="control-row">
+    <span>我的房間 ID：<strong id="myId">產生中...</strong></span>
+    <button onclick="copyRoomId()">複製房號</button>
+    <button onclick="copyRoomUrl()">複製網址</button>
+    <button id="localModeBtn" class="btn-local" onclick="enableLocalMode()">單機雙人測試</button>
+  </div>
+  <div class="control-row" id="joinRow">
+    <span>加入好友：</span>
+    <input type="text" id="joinIdInput" placeholder="輸入對方房間 ID" style="width: 180px;">
+    <button id="joinBtn" class="btn-primary" onclick="connectToPeer()">連線</button>
+  </div>
+  
+  <div class="control-row" style="background: #f8f9fa; padding: 8px 10px; border-radius: 6px; border: 1px solid #e9ecef;">
+    <strong>設定：</strong>
+    <label>棋盤數：<input type="number" id="boardCountInput" min="1" max="12" value="3" style="width: 42px; text-align: center; font-weight: bold;"></label>
+    <label style="margin-left: 4px;">秒數：<input type="number" id="thinkSecondsInput" min="1" max="60" step="0.5" value="3" style="width: 46px; text-align: center; font-weight: bold;"></label>
+    <label style="margin-left: 4px;">版型：
+      <select id="layoutModeSelect" onchange="changeLayoutMode()">
+        <option value="auto">✨ 自動</option>
+        <option value="desktop">💻 電腦</option>
+        <option value="mobile" selected>📱 手機(雙列)</option>
+      </select>
+    </label>
+    <button id="applyRulesBtn" class="btn-primary" onclick="applyAndSyncRules()">套用</button>
+  </div>
+
+  <div class="status-msg" id="connStatus">等待連線中...（若無法連線可點擊上方「單機雙人測試」）</div>
+  <div class="error-msg" id="errorLog"></div>
+</div>
+
+<div class="panel">
+  <h3>2. 燈號提示說明與玩家設定</h3>
+
+  <!-- 燈號提示說明區塊 -->
+  <div class="game-rules-box">
+    ⚡ <strong>燈號與遊戲規則提示：</strong>
+    <br>• <span style="background:#198754; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">🟢 綠框</span>：開放搶子（雙方皆可搶先下子）
+    <br>• <span style="background:#fd7e14; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">🟠 橘框</span>：倒數計時中（等待對方回應）
+    <br>• <span style="background:#dc3545; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">🔴 紅閃</span>：即將超時警示！若超時未回應則該棋盤變回綠框開放搶子。
+  </div>
+  
+  <div class="control-row" id="onlineSetupRow">
+    <span>字母：</span>
+    <input type="text" id="symbolInput" maxlength="1" value="O" style="width: 34px; text-align: center; text-transform: uppercase; font-weight: bold;">
+    <span>顏色：</span>
+    <input type="color" id="colorInput" value="#0056b3">
+    <button id="okBtn" class="btn-primary" onclick="setReady()" disabled>準備 OK</button>
+    <button id="resetBtn" class="btn-reset" onclick="requestReset()" disabled>重置</button>
+    <span id="readyStatus" style="margin-left: 6px; font-weight: bold; font-size: 14px;"></span>
+  </div>
+
+  <div class="local-setup-box" id="localSetupBox">
+    <div class="control-row" style="margin-bottom: 0;">
+      <strong>[單機測試]</strong>
+      <span>P1：</span><input type="text" id="p1LocalSym" maxlength="1" value="O" style="width: 30px; text-align: center; text-transform: uppercase;"><input type="color" id="p1LocalColor" value="#0056b3">
+      <span style="margin-left: 4px;">P2：</span><input type="text" id="p2LocalSym" maxlength="1" value="X" style="width: 30px; text-align: center; text-transform: uppercase;"><input type="color" id="p2LocalColor" value="#d9534f">
+      <button class="btn-primary" onclick="startLocalGame()">開始</button>
+      <button class="btn-reset" onclick="requestReset()">重置</button>
+    </div>
+  </div>
+
+  <div class="scoreboard">
+    <span class="score-item" id="scoreMeBox" style="color: #0056b3;">
+      <span id="p1Label">我方</span>(<span id="scoreMySym">?</span>):<span id="myWins">0</span>勝
+    </span>
+    <span class="score-item" id="scorePeerBox" style="color: #d9534f;">
+      <span id="p2Label">對方</span>(<span id="scorePeerSym">?</span>):<span id="peerWins">0</span>勝
+    </span>
+    <span class="score-item" style="color: #666;">平:<span id="draws">0</span></span>
+    <button class="btn-clear-score" onclick="requestClearScore()">歸零</button>
+  </div>
+
+  <div class="status-msg" id="turnStatus">請先完成連線並雙方按下 OK，或啟動單機測試模式</div>
+</div>
+
+<div class="boards-container layout-mobile" id="boardsContainer"></div>
+
+<script>
+  let boardCount = 3;
+  let thinkSeconds = 3;
+
+  let isLocalMode = false;
+  let peer = null;
+  let conn = null;
+  let isHost = true;
+  let connectTimeoutTimer = null;
+  let heartbeatTimer = null;
+  
+  let myReady = false;
+  let peerReady = false;
+  let mySymbol = 'O';
+  let myColor = '#0056b3';
+  let peerSymbol = 'X';
+  let peerColor = '#d9534f';
+  
+  let gameStarted = false;
+
+  let stats = { myWins: 0, peerWins: 0, draws: 0 };
+  let boardsState = [];
+
+  function createEmptyBoards() {
+    return Array.from({ length: boardCount }, () => ({
+      cells: Array(9).fill(''),
+      winner: null,
+      winLine: [],
+      allowedPlayer: 'ANY',
+      deadline: null
+    }));
+  }
+
+  function logError(msg) {
+    document.getElementById('errorLog').innerText = `⚠️ 連線診斷訊息：${msg}`;
+  }
+
+  function changeLayoutMode() {
+    const mode = document.getElementById('layoutModeSelect').value;
+    const container = document.getElementById('boardsContainer');
+    container.classList.remove('layout-desktop', 'layout-mobile');
+
+    if (mode === 'auto') {
+      if (window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
+        container.classList.add('layout-mobile');
+      } else {
+        container.classList.add('layout-desktop');
+      }
+    } else if (mode === 'mobile') {
+      container.classList.add('layout-mobile');
+    } else {
+      container.classList.add('layout-desktop');
+    }
+  }
+
+  window.addEventListener('resize', () => {
+    const mode = document.getElementById('layoutModeSelect').value;
+    if (mode === 'auto') {
+      changeLayoutMode();
+    }
+  });
+
+  function applyAndSyncRules(skipConfirm = false) {
+    const newCount = Math.min(12, Math.max(1, parseInt(document.getElementById('boardCountInput').value) || 3));
+    const newSec = Math.min(60, Math.max(1, parseFloat(document.getElementById('thinkSecondsInput').value) || 3));
+    
+    document.getElementById('boardCountInput').value = newCount;
+    document.getElementById('thinkSecondsInput').value = newSec;
+
+    if (!skipConfirm && gameStarted && boardsState.some(b => b.cells.some(c => c !== ''))) {
+      if (!confirm('套用新設定將會重置目前進行中的棋盤，確定要套用嗎？')) return;
+    }
+
+    boardCount = newCount;
+    thinkSeconds = newSec;
+    boardsState = createEmptyBoards();
+    renderBoards();
+    updateGameStatusUI();
+    changeLayoutMode();
+
+    if (!isLocalMode && conn && conn.open) {
+      conn.send({
+        type: 'SYNC_RULES',
+        boardCount: boardCount,
+        thinkSeconds: thinkSeconds
+      });
+    }
+  }
+
+  try {
+    peer = new Peer({
+      debug: 1,
+      config: {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:global.stun.twilio.com:3478' }
+        ]
+      }
+    });
+    
+    peer.on('open', (id) => {
+      document.getElementById('myId').innerText = id;
+      const urlParams = new URLSearchParams(window.location.search);
+      const roomParam = urlParams.get('room');
+      if (roomParam) {
+        document.getElementById('joinIdInput').value = roomParam;
+        window.history.replaceState({}, document.title, window.location.pathname);
+        connectToPeer();
+      }
+    });
+
+    peer.on('connection', (connection) => {
+      if (isLocalMode) return;
+      conn = connection;
+      isHost = true;
+      setupConnection();
+    });
+
+    peer.on('disconnected', () => {
+      if (!peer.destroyed) {
+        document.getElementById('connStatus').innerText = '⚠️ 與配對伺服器暫時斷線，正在自動重連...';
+        peer.reconnect();
+      }
+    });
+
+    peer.on('error', (err) => {
+      logError(`無法連接配對伺服器 (${err.type})。可能是網路限制或防火牆阻擋，建議改用「單機雙人測試模式」。`);
+    });
+  } catch (e) {
+    logError(`PeerJS 初始化失敗：${e.message}`);
+  }
+
+  function connectToPeer() {
+    const targetId = document.getElementById('joinIdInput').value.trim();
+    if (!targetId) return alert('請輸入對方的房間 ID');
+    
+    if (!peer || !peer.id) {
+      document.getElementById('connStatus').innerText = '正在初始化房間 ID，完成後將自動連線...';
+      peer.once('open', () => connectToPeer());
+      return;
+    }
+
+    document.getElementById('connStatus').innerText = '正在嘗試建立點對點連線（最多等待 30 秒）...';
+    document.getElementById('errorLog').innerText = '';
+    
+    conn = peer.connect(targetId, { reliable: true });
+    isHost = false;
+    setupConnection();
+
+    if (connectTimeoutTimer) clearTimeout(connectTimeoutTimer);
+    connectTimeoutTimer = setTimeout(() => {
+      if (!conn || !conn.open) {
+        logError('連線超過 30 秒仍未建立！可能是對方已關閉視窗、房間 ID 輸入錯誤，或網路環境阻擋 WebRTC 點對點通道。');
+      }
+    }, 30000);
+  }
+
+  function setupConnection() {
+    conn.on('open', () => {
+      if (connectTimeoutTimer) clearTimeout(connectTimeoutTimer);
+      document.getElementById('errorLog').innerText = '';
+      document.getElementById('connStatus').innerText = '✅ 連線成功！請確認盤面規則並設定代表字母與顏色後按「準備 OK」';
+      document.getElementById('okBtn').disabled = false;
+      document.getElementById('joinBtn').disabled = true;
+      document.getElementById('localModeBtn').disabled = true;
+
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      heartbeatTimer = setInterval(() => {
+        if (conn && conn.open) {
+          conn.send({ type: 'PING' });
+        }
+      }, 10000);
+
+      if (isHost) {
+        conn.send({
+          type: 'SYNC_RULES',
+          boardCount: boardCount,
+          thinkSeconds: thinkSeconds
+        });
+      }
+    });
+
+    conn.on('data', (data) => {
+      if (data.type === 'PING') {
+        return;
+      } else if (data.type === 'SYNC_RULES') {
+        boardCount = data.boardCount;
+        thinkSeconds = data.thinkSeconds;
+        document.getElementById('boardCountInput').value = boardCount;
+        document.getElementById('thinkSecondsInput').value = thinkSeconds;
+        boardsState = createEmptyBoards();
+        renderBoards();
+        updateGameStatusUI();
+      } else if (data.type === 'READY') {
+        peerReady = true;
+        peerSymbol = data.symbol;
+        peerColor = data.color;
+        updateReadyUI();
+        checkStartGame();
+      } else if (data.type === 'MOVE') {
+        applyMove(data.boardIdx, data.cellIdx, peerSymbol, peerColor, 'ME');
+      } else if (data.type === 'RESET') {
+        executeReset();
+      } else if (data.type === 'CLEAR_SCORE') {
+        executeClearScore();
+      }
+    });
+
+    conn.on('close', () => {
+      if (heartbeatTimer) clearInterval(heartbeatTimer);
+      logError('對方已中斷連線或關閉網頁。');
+      document.getElementById('connStatus').innerText = '❌ 連線已中斷';
+    });
+
+    conn.on('error', (err) => {
+      logError(`傳輸通道發生錯誤：${err}`);
+    });
+  }
+
+  function enableLocalMode() {
+    isLocalMode = true;
+    document.getElementById('onlineSetupRow').style.display = 'none';
+    document.getElementById('joinRow').style.display = 'none';
+    document.getElementById('localSetupBox').style.display = 'block';
+    document.getElementById('localModeBtn').disabled = true;
+    document.getElementById('connStatus').innerText = '🟢 已進入「單機雙人測試模式」（無需網路連線，可在同視窗輪流操作雙方）';
+    document.getElementById('errorLog').innerText = '';
+    document.getElementById('p1Label').innerText = '玩家 1';
+    document.getElementById('p2Label').innerText = '玩家 2';
+    startLocalGame();
+  }
+
+  function startLocalGame() {
+    const s1 = document.getElementById('p1LocalSym').value.trim().toUpperCase() || 'O';
+    const c1 = document.getElementById('p1LocalColor').value;
+    const s2 = document.getElementById('p2LocalSym').value.trim().toUpperCase() || 'X';
+    const c2 = document.getElementById('p2LocalColor').value;
+
+    if (s1 === s2) return alert('兩位玩家的代表字母不能相同！');
+
+    mySymbol = s1;
+    myColor = c1;
+    peerSymbol = s2;
+    peerColor = c2;
+    myReady = true;
+    peerReady = true;
+    gameStarted = true;
+    
+    updateReadyUI();
+    updateGameStatusUI();
+  }
+
+  function copyRoomId() {
+    const id = document.getElementById('myId').innerText;
+    if (id === '產生中...') return alert('房間 ID 尚未產生完成');
+    navigator.clipboard.writeText(id).then(() => {
+      alert(`已複製房間 ID：${id}`);
+    }).catch(() => {
+      prompt('請手動複製房間 ID：', id);
+    });
+  }
+
+  function copyRoomUrl() {
+    const id = document.getElementById('myId').innerText;
+    if (id === '產生中...') return alert('房間 ID 尚未產生完成');
+    const url = `${window.location.origin}${window.location.pathname}?room=${id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      alert('已複製邀請網址！');
+    }).catch(() => {
+      prompt('請手動複製以下網址：', url);
+    });
+  }
+
+  function setReady() {
+    const val = document.getElementById('symbolInput').value.trim().toUpperCase();
+    const col = document.getElementById('colorInput').value;
+    if (!val) return alert('請輸入一個字母！');
+    if (peerReady && val === peerSymbol) return alert(`對方已經選了 ${peerSymbol}，請換一個字母！`);
+    
+    mySymbol = val;
+    myColor = col;
+    myReady = true;
+    document.getElementById('symbolInput').disabled = true;
+    document.getElementById('colorInput').disabled = true;
+    document.getElementById('okBtn').disabled = true;
+    
+    conn.send({ type: 'READY', symbol: mySymbol, color: myColor });
+    updateReadyUI();
+    checkStartGame();
+  }
+
+  function updateReadyUI() {
+    const myTag = myReady ? `<span style="color:${myColor}">${mySymbol} (OK)</span>` : '未準備';
+    const peerTag = peerReady ? `<span style="color:${peerColor}">${peerSymbol} (OK)</span>` : '未準備';
+    document.getElementById('readyStatus').innerHTML = `我方: ${myTag} | 對方: ${peerTag}`;
+    
+    document.getElementById('scoreMySym').innerText = myReady ? mySymbol : '?';
+    document.getElementById('scoreMeBox').style.color = myReady ? myColor : '#0056b3';
+    
+    document.getElementById('scorePeerSym').innerText = peerReady ? peerSymbol : '?';
+    document.getElementById('scorePeerBox').style.color = peerReady ? peerColor : '#d9534f';
+  }
+
+  function checkStartGame() {
+    if (myReady && peerReady) {
+      gameStarted = true;
+      document.getElementById('resetBtn').disabled = false;
+      updateGameStatusUI();
+    }
+  }
+
+  function updateGameStatusUI() {
+    const status = document.getElementById('turnStatus');
+    if (!gameStarted) {
+      status.innerText = '請先完成連線並雙方按下 OK，或啟動單機測試模式';
+      status.style.color = '#0056b3';
+      return;
+    }
+
+    const allFinished = boardsState.every(b => b.winner !== null);
+    if (allFinished) {
+      status.innerText = '🎉 本輪所有棋盤皆已結束！可點擊「重置所有棋盤」進行下一輪。';
+      status.style.color = '#28a745';
+      return;
+    }
+
+    if (isLocalMode) {
+      status.innerHTML = `🔥 單機限時對戰中！各棋盤獨立倒數 <strong>${thinkSeconds} 秒</strong>，超時即變回開放棋盤！`;
+      status.style.color = '#28a745';
+    } else {
+      status.innerHTML = `🔥 連線限時對戰中！每盤落子後對方須於 <strong>${thinkSeconds} 秒</strong> 內回應，超時即變回開放搶子！`;
+      status.style.color = '#0056b3';
+    }
+  }
+
+  function updateScoreUI() {
+    document.getElementById('myWins').innerText = stats.myWins;
+    document.getElementById('peerWins').innerText = stats.peerWins;
+    document.getElementById('draws').innerText = stats.draws;
+  }
+
+  function requestReset() {
+    if (!gameStarted) return;
+    if (!isLocalMode && conn && conn.open) {
+      conn.send({ type: 'RESET' });
+    }
+    executeReset();
+  }
+
+  function executeReset() {
+    boardsState = createEmptyBoards();
+    renderBoards();
+    updateGameStatusUI();
+  }
+
+  function requestClearScore() {
+    if (!confirm('確定要將雙方的勝場與平手紀錄全部歸零嗎？')) return;
+    if (!isLocalMode && conn && conn.open) {
+      conn.send({ type: 'CLEAR_SCORE' });
+    }
+    executeClearScore();
+  }
+
+  function executeClearScore() {
+    stats = { myWins: 0, peerWins: 0, draws: 0 };
+    updateScoreUI();
+  }
+
+  function renderBoards() {
+    const container = document.getElementById('boardsContainer');
+    container.innerHTML = '';
+    boardsState.forEach((bState, bIdx) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'board-wrapper open-board';
+      wrapper.id = `board-wrapper-${bIdx}`;
+      
+      const title = document.createElement('div');
+      title.className = 'board-title';
+      title.id = `board-title-${bIdx}`;
+      title.innerText = `第 ${bIdx + 1} 盤`;
+      wrapper.appendChild(title);
+
+      const subStatus = document.createElement('div');
+      subStatus.className = 'board-sub-status badge-open';
+      subStatus.id = `board-sub-${bIdx}`;
+      subStatus.innerText = '🟢 開放搶子（雙方皆可下）';
+      wrapper.appendChild(subStatus);
+
+      const boardEl = document.createElement('div');
+      boardEl.className = 'board';
+      boardEl.id = `board-${bIdx}`;
+
+      for (let cIdx = 0; cIdx < 9; cIdx++) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.id = `cell-${bIdx}-${cIdx}`;
+        cell.onclick = () => handleCellClick(bIdx, cIdx);
+        boardEl.appendChild(cell);
+      }
+      wrapper.appendChild(boardEl);
+      container.appendChild(wrapper);
+    });
+  }
+
+  function handleCellClick(bIdx, cIdx) {
+    if (!gameStarted) return;
+    const board = boardsState[bIdx];
+    if (board.winner || board.cells[cIdx] !== '') return;
+
+    if (board.allowedPlayer !== 'ANY' && board.deadline && Date.now() >= board.deadline) {
+      board.allowedPlayer = 'ANY';
+      board.deadline = null;
+    }
+
+    if (isLocalMode) {
+      let actor = board.allowedPlayer === 'PEER' ? 'PEER' : 'ME';
+      const sym = actor === 'ME' ? mySymbol : peerSymbol;
+      const col = actor === 'ME' ? myColor : peerColor;
+      const nextAllowed = actor === 'ME' ? 'PEER' : 'ME';
+      applyMove(bIdx, cIdx, sym, col, nextAllowed);
+    } else {
+      if (board.allowedPlayer === 'PEER') {
+        return;
+      }
+      applyMove(bIdx, cIdx, mySymbol, myColor, 'PEER');
+      conn.send({ type: 'MOVE', boardIdx: bIdx, cellIdx: cIdx });
+    }
+  }
+
+  function applyMove(bIdx, cIdx, symbol, color, nextAllowedPlayer) {
+    const board = boardsState[bIdx];
+    board.cells[cIdx] = symbol;
+    
+    const cellEl = document.getElementById(`cell-${bIdx}-${cIdx}`);
+    cellEl.innerText = symbol;
+    cellEl.style.color = color;
+
+    const result = checkWinner(board.cells);
+    if (result) {
+      board.winner = result.winner;
+      board.winLine = result.line;
+      board.allowedPlayer = 'NONE';
+      board.deadline = null;
+
+      const boardEl = document.getElementById(`board-${bIdx}`);
+      boardEl.classList.remove('locked');
+      boardEl.classList.add('finished');
+
+      const wrapperEl = document.getElementById(`board-wrapper-${bIdx}`);
+      wrapperEl.classList.remove('urgent', 'open-board', 'counting-board');
+
+      const titleEl = document.getElementById(`board-title-${bIdx}`);
+      const subEl = document.getElementById(`board-sub-${bIdx}`);
+      subEl.className = 'board-sub-status badge-done';
+      
+      if (result.winner === 'DRAW') {
+        stats.draws++;
+        titleEl.innerText = `第 ${bIdx + 1} 盤：平手`;
+        titleEl.style.color = '#666';
+        subEl.innerText = '已結束';
+      } else {
+        result.line.forEach(idx => {
+          document.getElementById(`cell-${bIdx}-${idx}`).classList.add('win-cell');
+        });
+
+        if (result.winner === mySymbol) stats.myWins++;
+        else stats.peerWins++;
+        
+        titleEl.innerText = `第 ${bIdx + 1} 盤：${result.winner} 獲勝！`;
+        titleEl.style.color = color;
+        subEl.innerText = '🏆 勝負已分';
+        subEl.style.color = color;
+      }
+      updateScoreUI();
+      updateGameStatusUI();
+    } else {
+      board.allowedPlayer = nextAllowedPlayer;
+      board.deadline = Date.now() + thinkSeconds * 1000;
+      refreshSingleBoardTimerUI(bIdx);
+    }
+  }
+
+  setInterval(() => {
+    boardsState.forEach((board, bIdx) => {
+      if (board.winner !== null) return;
+      if (board.allowedPlayer !== 'ANY' && board.deadline !== null) {
+        if (Date.now() >= board.deadline) {
+          board.allowedPlayer = 'ANY';
+          board.deadline = null;
+        }
+      }
+      refreshSingleBoardTimerUI(bIdx);
+    });
+  }, 100);
+
+  function refreshSingleBoardTimerUI(bIdx) {
+    const board = boardsState[bIdx];
+    const wrapperEl = document.getElementById(`board-wrapper-${bIdx}`);
+    const boardEl = document.getElementById(`board-${bIdx}`);
+    const subEl = document.getElementById(`board-sub-${bIdx}`);
+    if (!wrapperEl || !boardEl || !subEl || board.winner !== null) return;
+
+    if (board.allowedPlayer === 'ANY') {
+      wrapperEl.classList.remove('urgent', 'counting-board');
+      wrapperEl.classList.add('open-board');
+      boardEl.classList.remove('locked');
+      subEl.className = 'board-sub-status badge-open';
+      subEl.innerText = '🟢 開放搶子（雙方皆可下）';
+    } else {
+      const remainMs = Math.max(0, board.deadline - Date.now());
+      const remainSec = (remainMs / 1000).toFixed(1);
+      wrapperEl.classList.remove('open-board');
+
+      const urgentThreshold = Math.max(1.2, thinkSeconds * 0.4);
+      const isUrgent = remainSec <= urgentThreshold;
+
+      if (isUrgent) {
+        wrapperEl.classList.remove('counting-board');
+        wrapperEl.classList.add('urgent');
+        subEl.className = 'board-sub-status badge-urgent';
+      } else {
+        wrapperEl.classList.remove('urgent');
+        wrapperEl.classList.add('counting-board');
+        subEl.className = 'board-sub-status badge-counting';
+      }
+
+      if (isLocalMode) {
+        boardEl.classList.remove('locked');
+        const targetName = board.allowedPlayer === 'ME' ? `玩家1 (${mySymbol})` : `玩家2 (${peerSymbol})`;
+        subEl.innerHTML = isUrgent
+          ? `🚨 超時警示：${targetName} (${remainSec}s)`
+          : `⏳ 限 ${targetName} 落子 (${remainSec}s)`;
+      } else {
+        if (board.allowedPlayer === 'ME') {
+          boardEl.classList.remove('locked');
+          subEl.innerHTML = isUrgent
+            ? `🚨 快超時！剩 ${remainSec}s`
+            : `⚡ 輪到你！剩 ${remainSec}s`;
+        } else {
+          boardEl.classList.add('locked');
+          subEl.innerHTML = isUrgent
+            ? `🔥 對方快超時！準備搶子 (${remainSec}s)`
+            : `⏳ 等對方 (${remainSec}s)`;
+        }
+      }
+    }
+  }
+
+  function checkWinner(cells) {
+    const _lines = [
+      [0, 1, 2], [3, 4, 5], [6, 7, 8],
+      [0, 3, 6], [1, 4, 7], [2, 5, 8],
+      [0, 4, 8], [2, 4, 6]
+    ];
+    for (let line of _lines) {
+      const [a, b, c] = line;
+      if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
+        return { winner: cells[a], line: line };
+      }
+    }
+    if (cells.every(cell => cell !== '')) {
+      return { winner: 'DRAW', line: [] };
+    }
+    return null;
+  }
+
+  boardsState = createEmptyBoards();
+  renderBoards();
+  changeLayoutMode();
+</script>
+</body>
+</html>
