@@ -6,87 +6,89 @@
 <title>多棋盤自訂字母與代表色連線對戰（響應式雙版本強化版）</title>
 <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
 <style>
-  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; background: #f4f6f9; color: #333; }
-  .panel { background: white; padding: 16px 20px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
-  h3 { margin-top: 0; margin-bottom: 12px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; }
+  body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 16px; background: #f4f6f9; color: #333; box-sizing: border-box; }
+  * { box-sizing: border-box; }
+  .panel { background: white; padding: 14px 16px; border-radius: 8px; margin-bottom: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.08); }
+  h3 { margin-top: 0; margin-bottom: 12px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; font-size: 16px; }
   
-  .scoreboard { display: flex; flex-wrap: wrap; align-items: center; gap: 20px; font-size: 18px; font-weight: bold; background: #eef6ff; padding: 12px 16px; border-radius: 6px; border-left: 5px solid #0056b3; margin-top: 12px; }
+  .scoreboard { display: flex; flex-wrap: wrap; align-items: center; gap: 15px; font-size: 16px; font-weight: bold; background: #eef6ff; padding: 10px 14px; border-radius: 6px; border-left: 5px solid #0056b3; margin-top: 12px; }
   .score-item { display: flex; align-items: center; gap: 4px; }
   
   /* 動態版型容器 */
-  .boards-container { display: grid; gap: 24px; transition: all 0.3s ease; }
+  .boards-container { display: grid; gap: 16px; transition: all 0.3s ease; }
   
-  /* 版型 A：電腦版（預設自動 / 多欄排版） */
+  /* 版型 A：電腦版（多欄排版） */
   .boards-container.layout-desktop {
     grid-template-columns: repeat(auto-fill, minmax(224px, 1fr));
   }
 
-  /* 版型 B：手機版（強制每行最多 2 個棋盤） */
+  /* 版型 B：手機版（強制每行最多 2 個棋盤，優化間距與寬度避免超出螢幕） */
   .boards-container.layout-mobile {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    max-width: 520px;
+    max-width: 100%;
     margin: 0 auto;
+    gap: 10px;
   }
 
   .board-wrapper { 
     background: white; 
-    padding: 14px; 
-    border: 4px solid #333; 
-    border-radius: 12px; 
+    padding: 10px; 
+    border: 3px solid #333; 
+    border-radius: 10px; 
     text-align: center; 
-    box-shadow: 0 4px 8px rgba(0,0,0,0.08); 
+    box-shadow: 0 3px 6px rgba(0,0,0,0.08); 
     transition: all 0.2s ease; 
+    width: 100%;
+    overflow: hidden;
   }
   
   /* 🟢 開放棋盤：亮綠粗框 + 淡綠底色 + 綠光暈 */
   .board-wrapper.open-board { 
-    border: 5px solid #198754; 
+    border: 4px solid #198754; 
     background: #ebfaf0; 
-    box-shadow: 0 0 18px rgba(25, 135, 84, 0.55); 
+    box-shadow: 0 0 14px rgba(25, 135, 84, 0.5); 
   }
   
   /* 🔴 倒數緊迫（紅框）：粗紅框 + 淡紅警示底色 + 呼吸閃爍光暈 */
   .board-wrapper.urgent { 
-    border: 5px solid #dc3545; 
+    border: 4px solid #dc3545; 
     background: #fff0f1; 
     animation: urgent-flash 0.55s infinite alternate; 
   }
   @keyframes urgent-flash {
-    0% { box-shadow: 0 0 10px rgba(220, 53, 69, 0.45); transform: scale(1); }
-    100% { box-shadow: 0 0 26px rgba(220, 53, 69, 0.95); transform: scale(1.015); }
+    0% { box-shadow: 0 0 8px rgba(220, 53, 69, 0.45); transform: scale(1); }
+    100% { box-shadow: 0 0 20px rgba(220, 53, 69, 0.9); transform: scale(1.01); }
   }
 
   /* ⏳ 一般倒數中（橘框） */
   .board-wrapper.counting-board {
-    border: 5px solid #fd7e14;
+    border: 4px solid #fd7e14;
     background: #fff9f2;
-    box-shadow: 0 0 12px rgba(253, 126, 20, 0.35);
+    box-shadow: 0 0 10px rgba(253, 126, 20, 0.35);
   }
   
-  .board-title { font-size: 16px; font-weight: bold; margin-bottom: 6px; }
+  .board-title { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
   
   .board-sub-status { 
-    font-size: 13px; 
+    font-size: 11px; 
     font-weight: bold; 
-    margin-bottom: 10px; 
-    padding: 6px 8px;
-    border-radius: 6px;
-    min-height: 24px; 
+    margin-bottom: 8px; 
+    padding: 4px 6px;
+    border-radius: 5px;
+    min-height: 20px; 
     display: flex;
     align-items: center;
     justify-content: center;
     text-align: center;
-    line-height: 1.3;
+    line-height: 1.2;
   }
   .badge-open {
     background-color: #198754;
     color: #ffffff !important;
-    box-shadow: 0 2px 5px rgba(25, 135, 84, 0.4);
   }
   .badge-urgent {
     background-color: #dc3545;
     color: #ffffff !important;
-    box-shadow: 0 2px 6px rgba(220, 53, 69, 0.5);
   }
   .badge-counting {
     background-color: #fff3cd;
@@ -98,29 +100,72 @@
     color: #495057;
   }
   
-  .board { display: grid; grid-template-columns: repeat(3, min(64px, 28vw)); grid-template-rows: repeat(3, min(64px, 28vw)); gap: 3px; background: #333; border: 2px solid #333; margin: 0 auto; width: max-content; }
-  .cell { background: white; font-size: 26px; font-weight: bold; display: flex; align-items: center; justify-content: center; cursor: pointer; user-select: none; transition: background-color 0.2s, transform 0.1s; }
+  /* 電腦版棋盤與格子 */
+  .boards-container.layout-desktop .board { 
+    display: grid; 
+    grid-template-columns: repeat(3, 64px); 
+    grid-template-rows: repeat(3, 64px); 
+    gap: 3px; 
+    background: #333; 
+    border: 2px solid #333; 
+    margin: 0 auto; 
+    width: max-content; 
+  }
+  .boards-container.layout-desktop .cell { 
+    background: white; 
+    font-size: 28px; 
+    font-weight: bold; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    user-select: none; 
+  }
+
+  /* 手機版雙列排版：使用百分比寬度縮放格子，確保完美塞入雙欄且絕不超出螢幕 */
+  .boards-container.layout-mobile .board { 
+    display: grid; 
+    grid-template-columns: repeat(3, 1fr); 
+    grid-template-rows: repeat(3, 1fr); 
+    gap: 2px; 
+    background: #333; 
+    border: 2px solid #333; 
+    margin: 0 auto; 
+    width: 100%; 
+    aspect-ratio: 1;
+  }
+  .boards-container.layout-mobile .cell { 
+    background: white; 
+    font-size: 22px; 
+    font-weight: bold; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center; 
+    cursor: pointer; 
+    user-select: none; 
+  }
+
   .cell:hover { background: #f0f7ff; }
   .board.finished .cell, .board.locked .cell { cursor: not-allowed; }
   .board.finished .cell { background: #f2f2f2; }
   .board.locked .cell { background: #f8f9fa; opacity: 0.85; }
   
   /* 勝利連線高亮樣式 */
-  .cell.win-cell { background-color: #fff3cd !important; box-shadow: inset 0 0 0 3px #ffc107; animation: pulse 0.8s ease-in-out; }
+  .cell.win-cell { background-color: #fff3cd !important; box-shadow: inset 0 0 0 2px #ffc107; animation: pulse 0.8s ease-in-out; }
   @keyframes pulse {
     0% { transform: scale(1); }
-    50% { transform: scale(1.06); }
+    50% { transform: scale(1.05); }
     100% { transform: scale(1); }
   }
 
-  .status-msg { font-weight: bold; color: #0056b3; margin-top: 10px; font-size: 15px; }
-  .error-msg { color: #d9534f; font-size: 13px; margin-top: 6px; font-weight: bold; }
+  .status-msg { font-weight: bold; color: #0056b3; margin-top: 8px; font-size: 14px; }
+  .error-msg { color: #d9534f; font-size: 12px; margin-top: 6px; font-weight: bold; }
   
-  .control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 10px; }
-  input[type="text"], input[type="number"], select { padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
-  input[type="color"] { width: 36px; height: 32px; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; vertical-align: middle; }
+  .control-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 8px; }
+  input[type="text"], input[type="number"], select { padding: 6px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 14px; }
+  input[type="color"] { width: 34px; height: 30px; padding: 0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; vertical-align: middle; }
   
-  button { padding: 7px 14px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; font-size: 14px; font-weight: 500; transition: all 0.15s; }
+  button { padding: 6px 12px; cursor: pointer; border-radius: 4px; border: 1px solid #ccc; background: #fff; font-size: 14px; font-weight: 500; transition: all 0.15s; }
   button:hover:not(:disabled) { background: #e9ecef; }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
   
@@ -133,11 +178,11 @@
   .btn-reset { background: #fff0f0; border-color: #d9534f; color: #d9534f; font-weight: bold; }
   .btn-reset:hover:not(:disabled) { background: #ffd6d6; }
   
-  .btn-clear-score { background: #fff8e6; border-color: #e0a800; color: #856404; font-size: 13px; padding: 5px 10px; margin-left: auto; }
+  .btn-clear-score { background: #fff8e6; border-color: #e0a800; color: #856404; font-size: 12px; padding: 4px 8px; margin-left: auto; }
   .btn-clear-score:hover:not(:disabled) { background: #ffeeba; }
 
   .local-setup-box { background: #f8f9fa; border: 1px dashed #28a745; padding: 10px; border-radius: 6px; margin-top: 10px; display: none; }
-  .game-rules-box { background: #fff9e6; border: 1px solid #ffeeba; padding: 10px 14px; border-radius: 6px; margin-bottom: 12px; font-size: 14px; color: #664d03; }
+  .game-rules-box { background: #fff9e6; border: 1px solid #ffeeba; padding: 8px 12px; border-radius: 6px; margin-bottom: 10px; font-size: 13px; color: #664d03; }
 </style>
 </head>
 <body>
@@ -146,91 +191,76 @@
   <h3>1. 連線與遊戲設定</h3>
   <div class="control-row">
     <span>我的房間 ID：<strong id="myId">產生中...</strong></span>
-    <button onclick="copyRoomId()">複製房間 ID</button>
-    <button onclick="copyRoomUrl()">複製邀請網址</button>
-    <button id="localModeBtn" class="btn-local" onclick="enableLocalMode()">啟動單機雙人測試模式（免連線）</button>
+    <button onclick="copyRoomId()">複製房號</button>
+    <button onclick="copyRoomUrl()">複製網址</button>
+    <button id="localModeBtn" class="btn-local" onclick="enableLocalMode()">單機雙人測試</button>
   </div>
   <div class="control-row" id="joinRow">
-    <span>加入好友房間：</span>
-    <input type="text" id="joinIdInput" placeholder="輸入對方房間 ID" style="width: 240px;">
-    <button id="joinBtn" class="btn-primary" onclick="connectToPeer()">連線加入</button>
+    <span>加入好友：</span>
+    <input type="text" id="joinIdInput" placeholder="輸入對方房間 ID" style="width: 180px;">
+    <button id="joinBtn" class="btn-primary" onclick="connectToPeer()">連線</button>
   </div>
   
-  <!-- 盤面規則與顯示版本切換設定 -->
-  <div class="control-row" style="background: #f8f9fa; padding: 10px; border-radius: 6px; border: 1px solid #e9ecef;">
-    <strong>盤面與版型設定：</strong>
-    <label>棋盤數：
-      <input type="number" id="boardCountInput" min="1" max="12" value="3" style="width: 48px; text-align: center; font-weight: bold;"> 盤
-    </label>
-    <label style="margin-left: 6px;">思考秒數：
-      <input type="number" id="thinkSecondsInput" min="1" max="60" step="0.5" value="3" style="width: 52px; text-align: center; font-weight: bold;"> 秒
-    </label>
-    <label style="margin-left: 6px;">畫面版型：
+  <div class="control-row" style="background: #f8f9fa; padding: 8px 10px; border-radius: 6px; border: 1px solid #e9ecef;">
+    <strong>設定：</strong>
+    <label>棋盤數：<input type="number" id="boardCountInput" min="1" max="12" value="3" style="width: 42px; text-align: center; font-weight: bold;"></label>
+    <label style="margin-left: 4px;">秒數：<input type="number" id="thinkSecondsInput" min="1" max="60" step="0.5" value="3" style="width: 46px; text-align: center; font-weight: bold;"></label>
+    <label style="margin-left: 4px;">版型：
       <select id="layoutModeSelect" onchange="changeLayoutMode()">
-        <option value="auto">✨ 自動偵測裝置</option>
-        <option value="desktop">💻 強制電腦版 (多欄)</option>
-        <option value="mobile">📱 強制手機版 (每行最多2盤)</option>
+        <option value="auto">✨ 自動</option>
+        <option value="desktop">💻 電腦</option>
+        <option value="mobile" selected>📱 手機(雙列)</option>
       </select>
     </label>
-    <button id="applyRulesBtn" class="btn-primary" onclick="applyAndSyncRules()">套用設定</button>
+    <button id="applyRulesBtn" class="btn-primary" onclick="applyAndSyncRules()">套用</button>
   </div>
 
-  <div class="status-msg" id="connStatus">等待連線中...（若在公司內網或本機開啟無法連線，可直接點擊上方「單機雙人測試模式」）</div>
+  <div class="status-msg" id="connStatus">等待連線中...（若無法連線可點擊上方「單機雙人測試」）</div>
   <div class="error-msg" id="errorLog"></div>
 </div>
 
 <div class="panel">
-  <h3>2. 玩家設定與戰績統計</h3>
+  <h3>2. 玩家設定與戰績</h3>
 
   <div class="game-rules-box">
-    ⚡ <strong>燈號與版本提示：</strong>
-    <br>• <span style="background:#198754; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">🟢 綠框</span>：開放搶子；<span style="background:#fd7e14; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">🟠 橘框</span>：倒數中；<span style="background:#dc3545; color:#fff; padding:2px 6px; border-radius:4px; font-weight:bold;">🔴 紅閃</span>：快超時！
-    <br>• 支援<strong>自動偵測設備</strong>或<strong>手動切換版型</strong>（手機版自動限制每行最多放 2 個棋盤，方便瀏覽與點擊）。
+    ⚡ <strong>手機版提示：</strong>已全面優化手機版雙列自動縮放，棋盤與格子會自動依照手機螢幕寬度等比例縮小，絕不超出畫面！
   </div>
   
   <div class="control-row" id="onlineSetupRow">
-    <span>我的代表字母：</span>
-    <input type="text" id="symbolInput" maxlength="1" value="O" style="width: 40px; text-align: center; text-transform: uppercase; font-weight: bold;">
-    <span>代表色：</span>
+    <span>字母：</span>
+    <input type="text" id="symbolInput" maxlength="1" value="O" style="width: 34px; text-align: center; text-transform: uppercase; font-weight: bold;">
+    <span>顏色：</span>
     <input type="color" id="colorInput" value="#0056b3">
     <button id="okBtn" class="btn-primary" onclick="setReady()" disabled>準備 OK</button>
-    <button id="resetBtn" class="btn-reset" onclick="requestReset()" disabled>重置所有棋盤 (Reset)</button>
-    <span id="readyStatus" style="margin-left: 10px; font-weight: bold;"></span>
+    <button id="resetBtn" class="btn-reset" onclick="requestReset()" disabled>重置</button>
+    <span id="readyStatus" style="margin-left: 6px; font-weight: bold; font-size: 14px;"></span>
   </div>
 
   <div class="local-setup-box" id="localSetupBox">
     <div class="control-row" style="margin-bottom: 0;">
       <strong>[單機測試]</strong>
-      <span>玩家 1 字母：</span>
-      <input type="text" id="p1LocalSym" maxlength="1" value="O" style="width: 36px; text-align: center; text-transform: uppercase;">
-      <input type="color" id="p1LocalColor" value="#0056b3">
-      
-      <span style="margin-left: 10px;">玩家 2 字母：</span>
-      <input type="text" id="p2LocalSym" maxlength="1" value="X" style="width: 36px; text-align: center; text-transform: uppercase;">
-      <input type="color" id="p2LocalColor" value="#d9534f">
-      
-      <button class="btn-primary" onclick="startLocalGame()">套用並開始 / 準備 OK</button>
-      <button class="btn-reset" onclick="requestReset()">重置所有棋盤 (Reset)</button>
+      <span>P1：</span><input type="text" id="p1LocalSym" maxlength="1" value="O" style="width: 30px; text-align: center; text-transform: uppercase;"><input type="color" id="p1LocalColor" value="#0056b3">
+      <span style="margin-left: 4px;">P2：</span><input type="text" id="p2LocalSym" maxlength="1" value="X" style="width: 30px; text-align: center; text-transform: uppercase;"><input type="color" id="p2LocalColor" value="#d9534f">
+      <button class="btn-primary" onclick="startLocalGame()">開始</button>
+      <button class="btn-reset" onclick="requestReset()">重置</button>
     </div>
   </div>
 
   <div class="scoreboard">
     <span class="score-item" id="scoreMeBox" style="color: #0056b3;">
-      <span id="p1Label">我方</span> (<span id="scoreMySym">?</span>)：<span id="myWins">0</span> 勝
+      <span id="p1Label">我方</span>(<span id="scoreMySym">?</span>):<span id="myWins">0</span>勝
     </span>
     <span class="score-item" id="scorePeerBox" style="color: #d9534f;">
-      <span id="p2Label">對方</span> (<span id="scorePeerSym">?</span>)：<span id="peerWins">0</span> 勝
+      <span id="p2Label">對方</span>(<span id="scorePeerSym">?</span>):<span id="peerWins">0</span>勝
     </span>
-    <span class="score-item" style="color: #666;">
-      平手：<span id="draws">0</span> 盤
-    </span>
-    <button class="btn-clear-score" onclick="requestClearScore()">重新整理戰績 (歸零計分)</button>
+    <span class="score-item" style="color: #666;">平:<span id="draws">0</span></span>
+    <button class="btn-clear-score" onclick="requestClearScore()">歸零</button>
   </div>
 
   <div class="status-msg" id="turnStatus">請先完成連線並雙方按下 OK，或啟動單機測試模式</div>
 </div>
 
-<div class="boards-container layout-desktop" id="boardsContainer"></div>
+<div class="boards-container layout-mobile" id="boardsContainer"></div>
 
 <script>
   let boardCount = 3;
@@ -269,14 +299,12 @@
     document.getElementById('errorLog').innerText = `⚠️ 連線診斷訊息：${msg}`;
   }
 
-  // 版型切換邏輯（支援自動偵測與手動強制切換）
   function changeLayoutMode() {
     const mode = document.getElementById('layoutModeSelect').value;
     const container = document.getElementById('boardsContainer');
     container.classList.remove('layout-desktop', 'layout-mobile');
 
     if (mode === 'auto') {
-      // 自動偵測：若螢幕寬度小於 768px 或直立手機，自動套用手機版（每行最多2盤），否則電腦版
       if (window.innerWidth <= 768 || /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent)) {
         container.classList.add('layout-mobile');
       } else {
@@ -289,7 +317,6 @@
     }
   }
 
-  // 監聽視窗大小改變（當選自動模式時自動響應）
   window.addEventListener('resize', () => {
     const mode = document.getElementById('layoutModeSelect').value;
     if (mode === 'auto') {
@@ -767,31 +794,31 @@
         boardEl.classList.remove('locked');
         const targetName = board.allowedPlayer === 'ME' ? `玩家1 (${mySymbol})` : `玩家2 (${peerSymbol})`;
         subEl.innerHTML = isUrgent
-          ? `🚨 快超時！限 ${targetName} (${remainSec}s)`
+          ? `🚨 超時警示：${targetName} (${remainSec}s)`
           : `⏳ 限 ${targetName} 落子 (${remainSec}s)`;
       } else {
         if (board.allowedPlayer === 'ME') {
           boardEl.classList.remove('locked');
           subEl.innerHTML = isUrgent
-            ? `🚨 警告：快超時！剩 ${remainSec}s`
-            : `⚡ 輪到你回應！剩 ${remainSec}s`;
+            ? `🚨 快超時！剩 ${remainSec}s`
+            : `⚡ 輪到你！剩 ${remainSec}s`;
         } else {
           boardEl.classList.add('locked');
           subEl.innerHTML = isUrgent
             ? `🔥 對方快超時！準備搶子 (${remainSec}s)`
-            : `⏳ 等對方回應 (${remainSec}s)`;
+            : `⏳ 等對方 (${remainSec}s)`;
         }
       }
     }
   }
 
   function checkWinner(cells) {
-    const lines = [
+    _lines = [
       [0, 1, 2], [3, 4, 5], [6, 7, 8],
       [0, 3, 6], [1, 4, 7], [2, 5, 8],
       [0, 4, 8], [2, 4, 6]
     ];
-    for (let line of lines) {
+    for (let line of _lines) {
       const [a, b, c] = line;
       if (cells[a] && cells[a] === cells[b] && cells[a] === cells[c]) {
         return { winner: cells[a], line: line };
